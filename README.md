@@ -1,6 +1,6 @@
 # Ryu
 
-A `Tornado Whirlwind Kick` scala client for the `riak` `raw` http interface
+A `Tornado Whirlwind Kick` scala client for the [riak](http://riak.basho.com/) `raw` http interface
 
 Riak
 
@@ -47,11 +47,9 @@ a `key` is the key by which you refer to your value silly
 
 a `vclock` is a unique hash of your document version
 
-`links` are a navigation utility for traversing to other documents
+`links` are a navigation utility used for traversing to other documents
 
-`documents` have data
-  
-data is expect in jsón format
+`documents` have data (expected flavor is jsón)
 
 ### more operations
 
@@ -70,23 +68,47 @@ data is expect in jsón format
     // walk over to Sagat
     db > (dan, (`fighters, Some("Sagat"), Some(true)))
     
-    // delete Sagat
+    // delete (defeat) Sagat
     db - ^('fighters, "Sagat", None, None)
+
+    // submit m/r job to find all fighter names
+    db mapred(
+      Query(Seq(("fighters", None)), Seq(
+          Mapper named("Riak.mapValuesJson"),
+          Reducer source("""
+            function(values, arg) { 
+              var names = []; values.forEach(v){ names.push(v["name"]); } 
+              return names;
+            }
+          } """.stripMargin.trim),
+      ))
+    )
+    
+    // validate m/r query
+    Query(Seq("fighters"), Seq(
+        Linker("fighters", "dan")
+    )).validate // IllegalArgumentException (no mapper or reducer!)
 
 ## install
 
-TODO
+TODO erl/riak instructions
+TODO mvn repo
 
 ## fork/knife
 
     git://github.com/softprops/ryu.git
 
+## goals
+
+* provide a k-v api similar to a Map
+* follow `dispatch` idioms
+
 ## todo
 
 * apply links when creating/updating
 * oo json via lift-json
-* tests!
-* map/reduce
+* more test converage
+* handle multipart/mixed response
 
 ## issues
 
@@ -96,8 +118,15 @@ You got issues with ryu? Take them up directly with him here
 
 ## references
 
-Ryu bows to those that came before
+[riakka](http://github.com/timperrett/riakka) is another high kicking scala client for riaks `jiak` interface (Ryu bows to those that came before)
+ 
+http://riak.basho.com/programming.html - an overview of Riak's http interface 
 
- - another high kicking scala riak client is `riakka`, a scala client for riaks `jiak` interface
+http://blog.basho.com/2010/02/24/link-walking-by-example/ - walking the link
+
+http://blog.basho.com/2010/02/03/the-release-riak-0.8-and-javascript-map/reduce/ - riak map/reduce cartography
+
+http://vimeo.com/9188550 - riak map/reduce video
+
  
 2010 Doug Tangren (softprops)

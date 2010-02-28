@@ -2,6 +2,7 @@ import sbt._
 
 class RyuProject(info: ProjectInfo) extends DefaultProject(info) {
   override def crossScalaVersions = Set("2.7.6", "2.7.7", "2.8.0.Beta1-RC1") 
+  
   // configgy
   val lagNet = "lag.net repository" at "http://www.lag.net/repo"
   // databinder

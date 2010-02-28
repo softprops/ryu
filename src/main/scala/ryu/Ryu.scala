@@ -1,20 +1,45 @@
 package ryu
 
-/** function for building riak requests */
 object Ryu {
+  /** function for building riak requests (riak default is localhost, 8098) */
   def apply(host: String, port: Int) = new Ryu(host, port)
   
+  // (List[Link]() /: h("Link")) ((a,e) => e match { case Link_?(l) => l :: a  case _ => a })
+  
+  /** Link extractor */
+  object Link_? {
+    val Header = """<\/raw\/(\w.+)>;\s*(rel|riaktag)=\"(\w.+)\" """.trim.r
+    def unapply(h: String): Option[Link] = h match {
+      case Header(path, t, tag) => t match {
+        case "riaktag" | "rel" => Some(Link(Symbol(path), tag))
+        case _ => None
+      }
+    }
+  }
+  
+  object Js {
+    implicit def any2Json(obj: Any) = new Jsonifier(obj)
+    private [ryu] class Jsonifier(obj: Any) {
+      /** huge TODO convert objects jsón strings */
+      def asJson: String = obj match {
+        case _ => obj.toString
+      }
+    }
+  }
+  import Js._
+  
   /** riak request builder impl */
-  private [ryu] class Ryu(host: String, post: Int) {
+  private [ryu] class Ryu(host: String, port: Int) extends Mapred {
     import dispatch._
     
     private [ryu] val http = new Http
     private [ryu] val headers =  Map("Content-Type" -> "application/json")
     private [ryu] val withBody = Map("returnbody" -> true) 
-    private [ryu] val docHeaders = Seq("Link", "Date", "ETag", "Expires", "X-Riak-Vclock")
-    private [ryu] val bucHeaders = Seq("Link", "Date", "Expires")
+    private [ryu] val docHeaders = Seq("Link", "Date", "ETag", "Expires", "X-Riak-Vclock", "Content-Type")
+    private [ryu] val bucHeaders = Seq("Link", "Date", "Expires", "Content-Type")
     
-    val raw = :/(host, post) / "raw"
+    val riak = :/(host, port)
+    val raw = riak / "raw"
     
     def apply(bucket: Symbol) = http(
       (raw / bucket.name) >+ { *(_, bucHeaders) }
@@ -22,7 +47,7 @@ object Ryu {
     
     /**  save or update doc @return (doc,headers) */
     def apply(meta: ^, doc: String) = http(
-      (raw / meta.bucket.name / meta.key <:< headers <<? withBody <<< doc) >+ { *(_, docHeaders) }
+      (raw / meta.bucket.name / meta.key <:< headers <<? withBody <<< doc.asJson) >+ { *(_, docHeaders) }
     )
     
     /** get doc */
@@ -46,25 +71,26 @@ object Ryu {
       )
     }
     
+    /** map/reduce */
+    def mapred(q: Query) = http(
+      (riak / mapredPath <:< headers << q.asJson) >+ { r =>
+        (r as_str, r >:> { h => h })
+      }
+    )
+    
     /** `splat` req handler to split response into (doc, headers) */
     private [ryu] def *(r: Handlers, keys: Seq[String]) =
       (r as_str, r >:> { h => h.filterKeys { keys.contains } })
-    
-    /** map/reduce */
-    //def apply(inputs: Seq[String], (map: Mapper, reduce: Reducer)*) = {}
   }
+  
 }
 
 /** represents a link from on doc to another
  *  @param bucket
- *  @tag "up" if child doc else user defined tag
+ *  @tag rel="up" if link to parent, riaktag="contained" if link to child,
+ *       else riaktag="user defined tag"
  */
-case class Link(bucket: Symbol, tag: String) {
-  def unapply(h:Map[String,Seq[String]]) = h match {
-    // Link: </raw/hb>; rel="up", </raw/hb/fourth>; riaktag="foo"
-    case _ => None
-  }
-}
+case class Link(bucket: Symbol, tag: String)
 
 /**  document meta info */
 case class ^ (bucket: Symbol, key: String, vclock: Option[String], links: Option[Seq[Link]])
