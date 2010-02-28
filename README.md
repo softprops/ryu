@@ -24,9 +24,9 @@ Scala
     val db = Ryu("localhost", 8098)
     
     // store fighters
-    db(^('fighters, "Ken", None, None), """{"fighting-style":"Shotokan"}""")
-    db(^('fighters, "Ryu", None, None), """{"fighting-style":"Shotokan"}""")
-    db(^('fighters, "Chun-Li", None, None), """{"fighting-style":"Chūgoku Kenpō"}""")
+    db(^('fighters, "Ken"), """{"fighting-style":"Shotokan"}""")
+    db(^('fighters, "Ryu"), """{"fighting-style":"Shotokan"}""")
+    db(^('fighters, "Chun-Li"), """{"fighting-style":"Chūgoku Kenpō"}""")
     
     // now round up the fighters!
     val (props, headers) = db(`fighters)
@@ -91,7 +91,10 @@ a `vclock` is a unique hash of your document version
 
 ## install
 
-TODO erl/riak instructions
+install [erlang](http://gist.github.com/302327)
+
+download and install [riak](http://bitbucket.org/basho/riak/get/riak-0.8.tar.gz) 0.8 or later (just follow the readme)
+
 TODO mvn repo
 
 ## fork/knife
@@ -101,7 +104,7 @@ TODO mvn repo
 ## goals
 
 * provide a k-v api similar to a Map
-* follow `dispatch` idioms
+* follow [dispatch](http://github.com/softprops/Databinder-Dispatch) idioms
 
 ## todo
 
@@ -112,21 +115,20 @@ TODO mvn repo
 
 ## issues
 
-You got issues with ryu? Take them up directly with him here
-
-    http://github.com/softprops/ryu/issues
+You got issues with ryu? Take them up directly with him [here](http://github.com/softprops/ryu/issues).
 
 ## references
 
 [riakka](http://github.com/timperrett/riakka) is another high kicking scala client for riaks `jiak` interface (Ryu bows to those that came before)
  
-http://riak.basho.com/programming.html - an overview of Riak's http interface 
+[an overview of Riak's http interface](http://riak.basho.com/programming.html) 
 
-http://blog.basho.com/2010/02/24/link-walking-by-example/ - walking the link
+[walking the link](http://blog.basho.com/2010/02/24/link-walking-by-example/)
 
-http://blog.basho.com/2010/02/03/the-release-riak-0.8-and-javascript-map/reduce/ - riak map/reduce cartography
+[riak map/reduce cartography](http://blog.basho.com/2010/02/03/the-release-riak-0.8-and-javascript-map/reduce/)
 
-http://vimeo.com/9188550 - riak map/reduce video
+[riak map/reduce video](http://vimeo.com/9188550)
 
+[riak server config](http://riak.basho.com/basic-setup.html)
  
 2010 Doug Tangren (softprops)
