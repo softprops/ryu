@@ -24,9 +24,9 @@ Scala
     val db = Ryu("localhost", 8098)
     
     // store fighters
-    db(^('fighters, "Ken"), """{"fighting-style":"Shotokan"}""")
-    db(^('fighters, "Ryu"), """{"fighting-style":"Shotokan"}""")
-    db(^('fighters, "Chun-Li"), """{"fighting-style":"Chūgoku Kenpō"}""")
+    db(^('fighters, "Ken", None, None), """{"fighting-style":"Shotokan"}""")
+    db(^('fighters, "Ryu", None, None), """{"fighting-style":"Shotokan"}""")
+    db(^('fighters, "Chun-Li", None, None), """{"fighting-style":"Chūgoku Kenpō"}""")
     
     // now round up the fighters!
     val (props, headers) = db(`fighters)

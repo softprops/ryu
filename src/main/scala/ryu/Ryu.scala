@@ -93,9 +93,7 @@ object Ryu {
 case class Link(bucket: Symbol, tag: String)
 
 /**  document meta info */
-case class ^ (bucket: Symbol, key: String, vclock: Option[String], links: Option[Seq[Link]]) {
-  def this(bucket: Symbol, key: String) = this(bucket, key, None, None)
-}
+case class ^ (bucket: Symbol, key: String, vclock: Option[String], links: Option[Seq[Link]])
 
 /** bucket meta into */
 case class |^| (bucket: Symbol, allowMulti: Boolean, bigVclock: Int, chashKeyfun: (String, String), linkfun: (String, String), nVal: Int, oldVclock: Int, smallVclock: Int, youngVclock: Int)
