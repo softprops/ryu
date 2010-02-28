@@ -107,7 +107,7 @@ TODO mvn repo
 
 * apply links when creating/updating
 * oo json via lift-json
-* more test converage
+* more test coverage
 * handle multipart/mixed response
 
 ## issues
