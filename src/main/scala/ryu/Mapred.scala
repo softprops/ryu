@@ -46,7 +46,7 @@ object Reducer extends Reducer(Mapred.defaults)
   *  (equiv to http://host:port/raw/bucket/key/_,_,_)
   *  <pre>
   *    mapred(Query(
-  *      Seq("bucket","key"), Seq(
+  *      Seq(("bucket", Some("key"))), Seq(
   *        Mapper source("function(v) { return [v]; }")
   *      )
   *    ))
@@ -56,7 +56,7 @@ object Reducer extends Reducer(Mapred.defaults)
   *  (equiv to http://localhost:8098/raw/bucket/key/_,foo,_)
   *  <pre>
   *    mapred(Query(
-  *      Seq("bucket","key"), Seq(
+  *      Seq(("bucket", Some("key"))), Seq(
   *        Linker tag("foo"),
   *        Mapper source("function(v) { return [v]; }")
   *      )
@@ -68,7 +68,7 @@ object Reducer extends Reducer(Mapred.defaults)
   *  (equiv to http://localhost:8098/raw/bucket/key/_,_,_/_,_,_)
   *  <pre>
   *    mapred(Query(
-  *      Seq("bucket","key"), Seq(
+  *      Seq(("bucket", Some("key"))), Seq(
   *        Linker, Linker
   *        Mapper source("function(v) { return [v]; }")
   *      )
@@ -96,12 +96,13 @@ case class Query(inputs: Seq[(String, Option[String])], phases: Seq[Phase]) {
         case str:String => "\"%s\":\"%s\"" 
         case _ => "\"%s\":%s" 
       }).format(e._1, e._2)).mkString("{",",","}")
-     
+    
+    // FIXME inputs can actuall have 3 values: bucket, key, tag
     val json = new StringBuilder("{\"inputs\":")
     if(inputs.size == 1 && !inputs(0)._2.isDefined)
       json.append("\"%s\"" format(inputs(0)._1))
     else
-      json.append("[").append(inputs.map(i => "\"%s\":\"%s\"".format(i._1, i._2.get)).mkString(",")).append("]")
+      json.append("[").append(inputs.map(i => "[\"%s\",\"%s\"]".format(i._1, i._2.get)).mkString(",")).append("]")
     json.append(", \"query\":[")
     
     json.append((phases.map((p) => p match {

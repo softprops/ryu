@@ -4,14 +4,16 @@ object Ryu {
   /** function for building riak requests (riak default is localhost, 8098) */
   def apply(host: String, port: Int) = new Ryu(host, port)
   
-  // (List[Link]() /: h("Link")) ((a,e) => e match { case Link_?(l) => l :: a  case _ => a })
-  
   /** Link extractor */
   object Link_? {
     val Header = """<\/raw\/(\w.+)>;\s*(rel|riaktag)=\"(\w.+)\" """.trim.r
     def unapply(h: String): Option[Link] = h match {
       case Header(path, t, tag) => t match {
-        case "riaktag" | "rel" => Some(Link(Symbol(path), tag))
+        case "riaktag" | "rel" => {
+          val parts = path.split("/")
+          if(parts.size > 1) Some(Link(Symbol(parts(0)),Some(parts(1)), tag))
+          else Some(Link(Symbol(path), None, tag))
+        }
         case _ => None
       }
     }
@@ -47,7 +49,7 @@ object Ryu {
     
     /**  save or update doc @return (doc,headers) */
     def apply(meta: ^, doc: String) = http(
-      (raw / meta.bucket.name / meta.key <:< headers <<? withBody <<< doc.asJson) >+ { *(_, docHeaders) }
+      (raw / meta.bucket.name / meta.key <:< headers ++ meta.headers <<? withBody <<< doc.asJson) >+ { *(_, docHeaders) }
     )
     
     /** get doc */
@@ -60,7 +62,9 @@ object Ryu {
       (raw / meta.bucket.name / meta.key DELETE) >|
     )
     
-    /** walk doc links */
+    /** walk doc links 
+     * returns multipart/mixed Content-Type
+     */
     def > (meta: ^, links: (Symbol, Option[String], Option[Boolean])*) = {
       def segments = ((List[String]() /: links) { (a,l) => 
          ("%s,%s,%s" format(l._1.name, l._2.getOrElse("_"), l._3.getOrElse("_"))) :: a
@@ -82,18 +86,29 @@ object Ryu {
     private [ryu] def *(r: Handlers, keys: Seq[String]) =
       (r as_str, r >:> { h => h.filterKeys { keys.contains } })
   }
-  
 }
 
 /** represents a link from on doc to another
  *  @param bucket
+ *  @param key optional key to other doc
  *  @tag rel="up" if link to parent, riaktag="contained" if link to child,
  *       else riaktag="user defined tag"
  */
-case class Link(bucket: Symbol, tag: String)
+case class Link(bucket: Symbol, key:Option[String], tag: String) {
+  def headerVal = key match {
+    case None => "</raw/%s>; riaktag=\"%s\"" format(bucket.name, tag)
+    case _ => "</raw/%s/%s>; riaktag=\"%s\"" format(bucket.name, key.get, tag)
+  }
+}
 
 /**  document meta info */
-case class ^ (bucket: Symbol, key: String, vclock: Option[String], links: Option[Seq[Link]])
+case class ^ (bucket: Symbol, key: String, vclock: Option[String], links: Option[Seq[Link]]) {
+  def headers = Map(
+    "Link" -> links.getOrElse(Seq[Link]()).map(l => 
+      l.headerVal
+    ).mkString(", ")
+  )
+}
 
 /** bucket meta into */
 case class |^| (bucket: Symbol, allowMulti: Boolean, bigVclock: Int, chashKeyfun: (String, String), linkfun: (String, String), nVal: Int, oldVclock: Int, smallVclock: Int, youngVclock: Int)

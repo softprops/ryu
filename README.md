@@ -33,9 +33,11 @@ Scala
     
 ### baby steps
 
-documents have meta info
+documents have meta info which ryu uses as keys to access documents
 
-    val meta = ^(`bucket, "key", Some("vclock"), Some(Seq(links)))
+    val meta = ^(`bucket, "key", Some("vclock"), Some(
+      Seq(Link('bucket, Some("otherkey"),"linkTag"))
+    ))
 
 Did I just misspell 'clock'?
 
@@ -47,7 +49,7 @@ a `key` is the key by which you refer to your value silly
 
 a `vclock` is a unique hash of your document version
 
-`links` are a navigation utility used for traversing to other documents
+`links` are a navigation utility used for traversing to other documents (think html anchors)
 
 `documents` have data (expected flavor is jsón)
 
@@ -85,7 +87,7 @@ a `vclock` is a unique hash of your document version
     )
     
     // validate m/r query
-    Query(Seq("fighters"), Seq(
+    Query(Seq(("fighters",None)), Seq(
         Linker("fighters", "dan")
     )).validate // IllegalArgumentException (no mapper or reducer!)
 
@@ -108,10 +110,11 @@ TODO mvn repo
 
 ## todo
 
-* apply links when creating/updating
+* extract Link objects when fetching documents
 * oo json via lift-json
 * more test coverage
 * handle multipart/mixed response
+* cleaner api
 
 ## issues
 
