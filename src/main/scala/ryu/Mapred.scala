@@ -97,7 +97,7 @@ case class Query(inputs: Seq[(String, Option[String])], phases: Seq[Phase]) {
         case _ => "\"%s\":%s" 
       }).format(e._1, e._2)).mkString("{",",","}")
     
-    // FIXME inputs can actuall have 3 values: bucket, key, tag
+    // FIXME inputs can actually have 3 values: bucket, key, tag
     val json = new StringBuilder("{\"inputs\":")
     if(inputs.size == 1 && !inputs(0)._2.isDefined)
       json.append("\"%s\"" format(inputs(0)._1))
