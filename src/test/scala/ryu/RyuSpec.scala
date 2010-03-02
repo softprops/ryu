@@ -5,7 +5,7 @@ import org.specs._
 /** note: expects a running riak server running
  *  on localhost@8098
  */
-object RyuSpec extends Specification {
+class RyuSpec extends Specification {
   "Ryu" should {
     
     val db = Ryu("localhost",8098)

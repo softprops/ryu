@@ -2,7 +2,7 @@ package ryu
 
 import org.specs._
 
-object MapredSpec extends Specification {
+class MapredSpec extends Specification {
   "A Query" should {
     "validate presence of mapper or reducer" in {
       val q = Query(Seq(("foo",None)), Seq())
