@@ -9,7 +9,7 @@ class RyuProject(info: ProjectInfo) extends DefaultProject(info) {
   val databinderNet = "databinder.net repository" at "http://databinder.net/repo"
   
   // dispatch
-  val dpVersion = "0.7.0"
+  val dpVersion = "0.7.0-beta2"
   val dispatchOauth = "net.databinder" %% "dispatch-oauth" % dpVersion
   val dispatchLiftJson = "net.databinder" %% "dispatch-lift-json" % dpVersion
   val dispatchHttpJson = "net.databinder" %% "dispatch-http-json" % dpVersion
