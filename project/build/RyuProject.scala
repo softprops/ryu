@@ -1,8 +1,6 @@
 import sbt._
 
 class RyuProject(info: ProjectInfo) extends DefaultProject(info) {
-  override def crossScalaVersions = Seq("2.7.6", "2.7.7", "2.8.0.Beta1-RC1") 
-  
   // configgy
   val lagNet = "lag.net repository" at "http://www.lag.net/repo"
   // databinder
@@ -20,5 +18,4 @@ class RyuProject(info: ProjectInfo) extends DefaultProject(info) {
   val configgy = "net.lag" % "configgy" % "1.4" intransitive()
   val snapshots = "Scala Tools Snapshots" at "http://www.scala-tools.org/repo-snapshots/"
   val specs = "org.scala-tools.testing" % "specs" % "1.6.2.1-SNAPSHOT" % "test"
-  //val specs = "org.scala-tools.testing" % "specs" % "1.6.2" % "test"
 }
