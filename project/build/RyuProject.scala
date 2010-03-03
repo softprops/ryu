@@ -1,6 +1,6 @@
 import sbt._
 
-class RyuProject(info: ProjectInfo) extends DefaultProject(info) {
+class RyuProject(info: ProjectInfo) extends DefaultProject(info) with posterous.Publish {
   // configgy
   val lagNet = "lag.net repository" at "http://www.lag.net/repo"
   // databinder
@@ -13,6 +13,9 @@ class RyuProject(info: ProjectInfo) extends DefaultProject(info) {
   val dispatchHttpJson = "net.databinder" %% "dispatch-http-json" % dpVersion
   val dispatchJson = "net.databinder" %% "dispatch-json" % dpVersion
   val liftJson = "net.liftweb" %% "lift-json" % "1.1-M8"
+  
+  // mime4j (mulipart mime parsing)
+  val mime4j = "org.apache.james" % "apache-mime4j" % "0.6"
   
   // testing
   val configgy = "net.lag" % "configgy" % "1.4" intransitive()
