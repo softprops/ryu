@@ -2,7 +2,7 @@ package ryu
 
 import org.specs._
 
-class LinkSpec extends Specification {
+object LinkSpec extends Specification {
   "A Link" should {
     "render a key'd header value" in {
       val h = Link('fighters, Some("sagat"), "boss").headerVal
