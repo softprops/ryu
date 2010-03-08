@@ -106,11 +106,11 @@ case class Query(inputs: Seq[(String, Option[String])], phases: Seq[Phase]) {
     json.append(", \"query\":[")
     
     json.append((phases.map((p) => p match {
-      case l:Linker => "\"link\":%s" format(jsonifyMap(l.q))
-      case m:Mapper => "\"map\":%s" format(jsonifyMap(m.q))
-      case r:Reducer => "\"reduce\":%s" format(jsonifyMap(r.q))
+      case l:Linker => "{\"link\":%s}" format(jsonifyMap(l.q))
+      case m:Mapper => "{\"map\":%s}" format(jsonifyMap(m.q))
+      case r:Reducer => "{\"reduce\":%s}" format(jsonifyMap(r.q))
       case _ => ""
-    })).mkString("{",",","}"))
+    })).mkString(","))
     json append("]}") toString
   }
 }

@@ -36,7 +36,7 @@ Scala
 documents have meta info which ryu uses as keys to access documents
 
     val meta = ^(`bucket, "key", Some("vclock"), Some(
-      Seq(Link('bucket, Some("otherkey"),"linkTag"))
+      Seq(Link('bucket, Some("otherkey"), "linkTag"))
     ))
 
 Did I just misspell 'clock'?
@@ -55,41 +55,47 @@ a `vclock` is a unique hash of your document version
 
 ### more operations
 
+    import ryu._
+    
     // ref riak
     val db = Ryu(host, port)
     
+    // ref a key for sagat
+    val sagat = ^('fighters, "sagat", None, None)
+    
+    // create a like to sagat 
+    val sagatLink = sagat asLink("boss")
+    
     // ref a key for dan
-    val dan = ^('fighters, "dan", None, Some(Seq(Link('fighters, "Sagat"))))
+    val dan = ^('fighters, "dan", None, Some(Seq(sagatLink)))
+    
+    // save or update sagat
+    db(sagat, """{"hp":10}""")
+    
+    // save or update sagat
+    db(dan, """{"hp":100}""")
     
     // get dan
     db(dan)
     
-    // save or update dan
-    db(dan, """{"gi":"pink"}""")
-    
     // walk over to Sagat
-    db > (dan, (`fighters, Some("Sagat"), Some(true)))
-    
-    // delete (defeat) Sagat
-    db - ^('fighters, "Sagat", None, None)
-
-    // submit m/r job to find all fighter names
+    db > (dan, sagatLink.queryVal(true))
+  
+    // submit m/r job to find all fighter hp's
     db mapred(
       Query(Seq(("fighters", None)), Seq(
-          Mapper named("Riak.mapValuesJson"),
-          Reducer source("""
-            function(values, arg) { 
-              var names = []; values.forEach(v){ names.push(v["name"]); } 
-              return names;
-            }
-          } """.stripMargin.trim),
+          Mapper named("Riak.mapValuesJson") keep(false),
+          Reducer source("function(values){ var hps = []; values.forEach(function(v){ hps.push(v['hp']); }); return hps; }"),
       ))
     )
     
+    // delete (defeat) Sagat
+    db - sagat
+    
     // validate m/r query
     Query(Seq(("fighters",None)), Seq(
-        Linker("fighters", "dan")
-    )).validate // IllegalArgumentException (no mapper or reducer!)
+        Linker tag("dan")
+    )).validate // IllegalArgumentException (must contain a Mapper or Reducer)
 
 ## install
 
@@ -101,7 +107,7 @@ TODO mvn repo
 
 ## fork/knife
 
-    git://github.com/softprops/ryu.git
+contribute git://github.com/softprops/ryu.git
 
 ## goals
 
@@ -113,7 +119,6 @@ TODO mvn repo
 * extract Link objects when fetching documents
 * oo json via lift-json
 * more test coverage
-* handle multipart/mixed response
 * cleaner api
 
 ## issues

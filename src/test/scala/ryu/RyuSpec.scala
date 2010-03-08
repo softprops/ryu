@@ -16,6 +16,7 @@ object RyuSpec extends Specification {
       val (doc, headers) = db(key, value)
       print("put response body -> " + doc)
       print("put response h -> " + headers)
+      db - key
       doc must be_==(value)
     }
     "get a document" in {
@@ -25,6 +26,7 @@ object RyuSpec extends Specification {
       val (doc, headers) = db(key, value)
       print("get response body -> " + doc)
       print("get response h -> " + headers)
+      db - key
       doc must be_==(value)
     }
     "delete a document" in {
@@ -34,14 +36,49 @@ object RyuSpec extends Specification {
       db - key
       db(key) must throwA[dispatch.StatusCode] 
     }
-    "walk about" in {
-      val key = ^('fighters, "ryu", None, None)
-      val value = "test"
-      db(key, value)
-      val (r, headers) = db > (key, ('fighters, None, None))
-      print("walk response body -> " + r)
-      print("walk response h -> " + headers)
-      headers must haveKey("Expires")
+    "walk between documents " in {
+      val l2r = Link('fighters, Some("ryu"), "white")
+      val ken = ^('fighters, "ken", None, Some(Seq(l2r)))
+      val l2k = ken asLink("red")
+      val kenValue = "this is ken"
+      
+      val ryu = ^('fighters, "ryu", None, Some(Seq(l2k)))
+      val ryuValue = "this is ryu"
+      
+      db(ken, kenValue)
+      db(ryu, ryuValue)
+      
+      // walk from ken to ryu
+      val k2r = db > (ken, l2r.queryVal(true))
+      k2r.size must_==(1)
+      val (rdoc, rheaders) = k2r(0)
+      rdoc must be_==(ryuValue)
+      rheaders must haveKey("Location") //-> /raw/fighters/ryu
+      rheaders must haveKey("Last-Modified")
+      rheaders must haveKey("Etag")
+      rheaders must haveKey("Link")
+      
+      // walk from ryu to ken
+      val r2k = db > (ryu, l2k.queryVal(true))
+      r2k.size must_== 1
+      val (kdoc, kheaders) = r2k(0)
+      kdoc must be_==(kenValue)
+      kheaders must haveKey("Location") //-> /raw/fighters/ken
+      kheaders must haveKey("Last-Modified")
+      kheaders must haveKey("Etag")
+      kheaders must haveKey("Link")
+      
+      val rall = db > (ryu, ('fighters, None, Some(true)))
+      rall.size must_== 1
+      val (alldoc, allheaders) = rall(0)
+      alldoc must be_==(kenValue)
+      allheaders must haveKey("Location") //-> /raw/fighters/ken
+      allheaders must haveKey("Last-Modified")
+      allheaders must haveKey("Etag")
+      allheaders must haveKey("Link")
+       
+      db - ken
+      db - ryu
     }
     "support map reduce for simple types" in {
       val key = ^('fighters, "ryu", None, None)

@@ -33,6 +33,8 @@ object Ryu {
   /** riak request builder impl */
   private [ryu] class Ryu(host: String, port: Int) extends Mapred {
     import dispatch._
+    import dispatch.mime.Mime._
+    import scala.io.Source
     
     private [ryu] val http = new Http
     private [ryu] val headers =  Map("Content-Type" -> "application/json")
@@ -43,70 +45,90 @@ object Ryu {
     val riak = :/(host, port)
     val raw = riak / "raw"
     
+    /** Get bucket info */
     def apply(bucket: Symbol) = http(
       (raw / bucket.name) >+ { *(_, bucHeaders) }
     )
     
-    /**  save or update doc @return (doc,headers) */
+    /** Save or update a cocument @return (doc,headers) */
     def apply(meta: ^, doc: String) = http(
       (raw / meta.bucket.name / meta.key <:< headers ++ meta.headers <<? withBody <<< doc.asJson) >+ { *(_, docHeaders) }
     )
     
-    /** get doc */
+    /** Get a document */
     def apply(meta: ^) = http(
       (raw / meta.bucket.name / meta.key <:< headers) >+ { *(_, docHeaders) }
     )
     
-    /** delete doc */
+    /** Delete a document */
     def - (meta: ^)  = http(
       (raw / meta.bucket.name / meta.key DELETE) >|
     )
     
-    /** walk doc links 
-     * returns multipart/mixed Content-Type
+    /** Walk document links 
+     * @return list of (doc, headers)
      */
     def > (meta: ^, links: (Symbol, Option[String], Option[Boolean])*) = {
       def segments = ((List[String]() /: links) { (a,l) => 
          ("%s,%s,%s" format(l._1.name, l._2.getOrElse("_"), l._3.getOrElse("_"))) :: a
       }).reverse.mkString("/")
-        
+      
       http(
-        (raw / meta.bucket.name / meta.key / segments) >+ { *(_, bucHeaders ++ docHeaders) }
+        raw / meta.bucket.name / meta.key / segments >--> { (headers, stm) =>
+          (Source.fromInputStream(stm).mkString, headers)
+        }
       )
     }
     
-    /** map/reduce */
+    /** Submit a map/reduce query */
     def mapred(q: Query) = http(
       (riak / mapredPath <:< headers << q.asJson) >+ { r =>
         (r as_str, r >:> { h => h })
       }
     )
     
-    /** `splat` req handler to split response into (doc, headers) */
+    /** `Splat` req handler to split response into (doc, headers) */
     private [ryu] def *(r: Handlers, keys: Seq[String]) =
       (r as_str, r >:> { h => h.filterKeys { keys.contains } })
   }
 }
 
-/** represents a link from on doc to another
+/** Represents a link from on doc to another
  *  @param bucket
  *  @param key optional key to other doc
  *  @tag rel="up" if link to parent, riaktag="contained" if link to child,
  *       else riaktag="user defined tag"
  */
 case class Link(bucket: Symbol, key:Option[String], tag: String) {
+  
+  /** @return Header representation of self */
   def headerVal = key match {
     case None => "</raw/%s>; riaktag=\"%s\"" format(bucket.name, tag)
     case _ => "</raw/%s/%s>; riaktag=\"%s\"" format(bucket.name, key.get, tag)
   }
+  
+  /** @return walk query representation of self */
+  def queryVal(keep:Boolean) = (bucket, Some(tag), if(keep) Some(keep) else None)
+}
+
+/** Able to project self as a Link */
+trait LinkLike { 
+  def asLink(tag: String): Link
 }
 
 /**  document meta info */
-case class ^ (bucket: Symbol, key: String, vclock: Option[String], links: Option[Seq[Link]]) {
+case class ^ (bucket: Symbol, key: String, vclock: Option[String], links: Option[Seq[Link]]) extends LinkLike {
   def headers = Map(
     "Link" -> links.getOrElse(Seq[Link]()).map(l => 
       l.headerVal
     ).mkString(", ")
+  )
+  
+  def asLink(tag: String) = Link(bucket, Some(key), tag)
+  
+  /** @return new ^ with given Link l */
+  def + (l: Link) = ^(
+    bucket, key, vclock, Some(links getOrElse(Seq[Link]()) ++ Seq(l))
   )
 }
 
