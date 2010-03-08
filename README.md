@@ -72,13 +72,13 @@ a `vclock` is a unique hash of your document version
     // save or update sagat
     db(sagat, """{"hp":10}""")
     
-    // save or update sagat
+    // save or update dan
     db(dan, """{"hp":100}""")
     
     // get dan
     db(dan)
     
-    // walk over to Sagat
+    // dan walks over to Sagat
     db > (dan, sagatLink.queryVal(true))
   
     // submit m/r job to find all fighter hp's
