@@ -63,7 +63,7 @@ a `vclock` is a unique hash of your document version
     // ref a key for sagat
     val sagat = ^('fighters, "sagat", None, None)
     
-    // create a like to sagat 
+    // create a link to sagat 
     val sagatLink = sagat asLink("boss")
     
     // ref a key for dan
