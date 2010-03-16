@@ -47,8 +47,8 @@ object Ryu {
     val raw = riak / "riak"
     
     /** Get a server's stats */
-    def stats(bucket: Symbol) = http(
-      (raw / bucket.name) >+ { r =>
+    def stats = http(
+      (riak / "stats") >+ { r =>
         (r as_str, r >:> { h => h })
       }
     )
