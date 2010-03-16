@@ -8,24 +8,36 @@ import org.specs._
 object RyuSpec extends Specification {
   "Ryu" should {
     
+    // timeout
+    import Mapred.QueryDefaults._
+    
     val db = Ryu("localhost",8098)
     
     "store a document" in {
       val key = ^('fighters, "ryu", None, None)
       val value = "test"
       val (doc, headers) = db(key, value)
-      print("put response body -> " + doc)
-      print("put response h -> " + headers)
       db - key
       doc must be_==(value)
+    }
+    "store multiple documents" in {
+      val key1 = ^('fighters, "ryu", None, None)
+      val value1 = "ryu"
+      val key2 = ^('fighters, "dan", None, None)
+      val value2 = "dan"
+      val res = db ++ ((key1, value1) :: (key2, value2) :: Nil)
+      db - key1
+      db - key2
+      res.size must be_==(2)
+      res(0)._1 must be_==(value1)
+      res(1)._1 must be_==(value2)
+      
     }
     "get a document" in {
       val key = ^('fighters, "ryu", None, None)
       val value = "test"
       db(key, value)
       val (doc, headers) = db(key, value)
-      print("get response body -> " + doc)
-      print("get response h -> " + headers)
       db - key
       doc must be_==(value)
     }
@@ -84,20 +96,18 @@ object RyuSpec extends Specification {
       val key = ^('fighters, "ryu", None, None)
       val value = "test"
       db(key, value)
-      val q = Query(Seq(("fighters", None)), Seq(Mapper named("Riak.mapValues")))
+      val q = Query(Seq(("fighters", None, None)), Seq(Mapper named("Riak.mapValues")))
       val (r, resHeaders) = db mapred(q)
-      print("m/r 1 response h -> " + resHeaders)
-      print("m/r 1  r -> " + r)
       r must be_==("[\"test\"]")
     }
     "support map reduce for compile types" in {
       val key = ^('fighters, "ryu", None, None)
       val value = "{\"foo\":\"bar\"}"
       db(key, value)
-      val q = Query(Seq(("fighters", None)), Seq(Mapper named("Riak.mapValuesJson")))
+      val q = Query(Seq(("fighters", None, None)), Seq(Mapper named("Riak.mapValuesJson")))
       val (r, resHeaders) = db mapred(q)
-      print("m/r 2 -> " + r)
       r must be_==("[{\"foo\":\"bar\"}]")
+      db - key
     }
     // TODO "should support map reduce for annonymous mappers fns"
     // TODO "should support map reduce for annonymous reducer fns"

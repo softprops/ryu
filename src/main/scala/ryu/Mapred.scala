@@ -3,6 +3,9 @@ package ryu
 object Mapred {
   val path = "mapred"
   val defaults = Map("language"->"javascript", "keep"->true)
+  object QueryDefaults {
+    implicit val timeout = 60000
+  }
 }
 
 private [ryu] abstract class Phase(val q: Map[String,Any])
@@ -35,28 +38,36 @@ private [ryu] class Reducer(q:Map[String, Any]) extends Phase(q) {
 }
 /** Reduce phase builder */
 object Reducer extends Reducer(Mapred.defaults)
- 
+
  /** A wrapper for a m/r query
-  *  @param inputs a seq of string bucket and key values
-  *  @param phases a seq of map reduce phases. valid types are 
-  *                Linker, Mapper, Reducer. The Presence either a 
+  *  @param inputs a Seq of tuples in the format (bucket,Some(key),Some(keyData))
+  *                A tuple containing only a bucket triggers the somewhat 
+  *                expensive `list keys` operation
+  *
+  *  @param phases a Seq of map reduce {@link Phase}. Valid types are 
+  *                Linkers, Mappers, Reducers. The presence of either a 
   *                Mapper or Reducer is required
+  *
+  *  @param timeout (implicit) time out for query specified in milliseconds. 
+  *                A value of -1 is considered an unlimited timeout
+  *                The default `implicit` timeout is 60,000
+  *
   *  @examples
   *  1. follow all outbound links
-  *  (equiv to http://host:port/raw/bucket/key/_,_,_)
+  *  (equiv to http://host:port/riak/bucket/key/_,_,_)
   *  <pre>
   *    mapred(Query(
-  *      Seq(("bucket", Some("key"))), Seq(
+  *      Seq(("bucket", Some("key"), None)), Seq(
   *        Mapper source("function(v) { return [v]; }")
   *      )
   *    ))
   *  </pre>
   *
   *  2. follow only links that are tagged foo 
-  *  (equiv to http://localhost:8098/raw/bucket/key/_,foo,_)
+  *  (equiv to http://localhost:8098/riak/bucket/key/_,foo,_)
   *  <pre>
   *    mapred(Query(
-  *      Seq(("bucket", Some("key"))), Seq(
+  *      Seq(("bucket", Some("key"), None)), Seq(
   *        Linker tag("foo"),
   *        Mapper source("function(v) { return [v]; }")
   *      )
@@ -65,17 +76,17 @@ object Reducer extends Reducer(Mapred.defaults)
   * 
   *  3. Link phases may also be chained together (or put after other phases 
   *  if those phases produce bucket/key lists) 
-  *  (equiv to http://localhost:8098/raw/bucket/key/_,_,_/_,_,_)
+  *  (equiv to http://localhost:8098/riak/bucket/key/_,_,_/_,_,_)
   *  <pre>
   *    mapred(Query(
-  *      Seq(("bucket", Some("key"))), Seq(
+  *      Seq(("bucket", Some("key"), None)), Seq(
   *        Linker, Linker
   *        Mapper source("function(v) { return [v]; }")
   *      )
   *    ))
   *  </pre>
   */
-case class Query(inputs: Seq[(String, Option[String])], phases: Seq[Phase]) {
+case class Query(inputs: Seq[(String, Option[String], Option[String])], phases: Seq[Phase])(implicit timeout:Int) {
   val hasMapperOrReducer = !(phases filter { p => 
     p.isInstanceOf[Mapper] || p.isInstanceOf[Reducer]
   } isEmpty)

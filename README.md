@@ -81,9 +81,9 @@ a `vclock` is a unique hash of your document version
     // dan walks over to Sagat
     db > (dan, sagatLink.queryVal(true))
   
-    // submit m/r job to find all fighter hp's
+    // submit map reduce job to find all fighter hp's
     db mapred(
-      Query(Seq(("fighters", None)), Seq(
+      Query(Seq(("fighters", None, None)), Seq(
           Mapper named("Riak.mapValuesJson") keep(false),
           Reducer source("function(values){ var hps = []; values.forEach(function(v){ hps.push(v['hp']); }); return hps; }"),
       ))
@@ -93,7 +93,7 @@ a `vclock` is a unique hash of your document version
     db - sagat
     
     // validate m/r query
-    Query(Seq(("fighters",None)), Seq(
+    Query(Seq(("fighters",None, None)), Seq(
         Linker tag("dan")
     )).validate // IllegalArgumentException (must contain a Mapper or Reducer)
 
@@ -101,25 +101,25 @@ a `vclock` is a unique hash of your document version
 
 install [erlang](http://gist.github.com/302327)
 
-download and install [riak](http://bitbucket.org/basho/riak/get/riak-0.8.tar.gz) 0.8 or later (just follow the readme)
+download and install [riak](http://downloads.basho.com/riak/) 0.9.1 or later
 
 TODO mvn repo
 
-## fork/knife
+## fork/knife it
 
 contribute git://github.com/softprops/ryu.git
 
 ## goals
 
-* provide a k-v api similar to a Map
+* provide a persisent k-v api with an interface akin to a Map
 * follow [dispatch](http://github.com/softprops/Databinder-Dispatch) idioms
 
 ## todo
 
 * extract Link objects when fetching documents
-* oo json via lift-json
-* more test coverage
-* cleaner api
+* module for json <-> string conversions
+* use keep-alive for multi stage processing
+* solifidy api
 
 ## issues
 
@@ -129,14 +129,12 @@ You got issues with ryu? Take them up directly with him [here](http://github.com
 
 [riakka](http://github.com/timperrett/riakka) is another high kicking scala client for riaks `jiak` interface (Ryu bows to those that came before)
  
-[an overview of Riak's http interface](http://riak.basho.com/programming.html) 
+[riak rest api](https://wiki.basho.com/display/RIAK/REST+API)
 
 [walking the link](http://blog.basho.com/2010/02/24/link-walking-by-example/)
 
 [riak map/reduce cartography](http://blog.basho.com/2010/02/03/the-release-riak-0.8-and-javascript-map/reduce/)
 
 [riak map/reduce video](http://vimeo.com/9188550)
-
-[riak server config](http://riak.basho.com/basic-setup.html)
  
 2010 Doug Tangren (softprops)

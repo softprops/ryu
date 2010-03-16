@@ -30,6 +30,7 @@ object Ryu {
   }
   import Js._
   
+  
   /** riak request builder impl */
   private [ryu] class Ryu(host: String, port: Int) extends Mapred {
     import dispatch._
@@ -37,23 +38,35 @@ object Ryu {
     import scala.io.Source
     
     private [ryu] val http = new Http
-    private [ryu] val headers =  Map("Content-Type" -> "application/json")
+    private [ryu] val headers =  Map("Content-Type" -> "application/json", "X-Riak-ClientId" -> "ryu")
     private [ryu] val withBody = Map("returnbody" -> true) 
     private [ryu] val docHeaders = Seq("Link", "Date", "ETag", "Expires", "X-Riak-Vclock", "Content-Type")
     private [ryu] val bucHeaders = Seq("Link", "Date", "Expires", "Content-Type")
     
     val riak = :/(host, port)
-    val raw = riak / "raw"
+    val raw = riak / "riak"
+    
+    /** Get a server's stats */
+    def stats(bucket: Symbol) = http(
+      (raw / bucket.name) >+ { r =>
+        (r as_str, r >:> { h => h })
+      }
+    )
     
     /** Get bucket info */
     def apply(bucket: Symbol) = http(
       (raw / bucket.name) >+ { *(_, bucHeaders) }
     )
     
-    /** Save or update a cocument @return (doc,headers) */
+    /** Save or update a document @return (doc,headers) */
     def apply(meta: ^, doc: String) = http(
       (raw / meta.bucket.name / meta.key <:< headers ++ meta.headers <<? withBody <<< doc.asJson) >+ { *(_, docHeaders) }
     )
+    
+    /** Save or update multiple documents @return List[(doc,headers)] */
+    def ++ (kvs: Iterable[(^, String)]) = ((List[(String, scala.collection.Map.Projection[String, Set[String]])]() /: kvs) (
+      (l, e) => apply(e._1, e._2) :: l
+    )).reverse
     
     /** Get a document */
     def apply(meta: ^) = http(
@@ -103,8 +116,8 @@ case class Link(bucket: Symbol, key:Option[String], tag: String) {
   
   /** @return Header representation of self */
   def headerVal = key match {
-    case None => "</raw/%s>; riaktag=\"%s\"" format(bucket.name, tag)
-    case _ => "</raw/%s/%s>; riaktag=\"%s\"" format(bucket.name, key.get, tag)
+    case None => "</riak/%s>; riaktag=\"%s\"" format(bucket.name, tag)
+    case _ => "</riak/%s/%s>; riaktag=\"%s\"" format(bucket.name, key.get, tag)
   }
   
   /** @return walk query representation of self */
