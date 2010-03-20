@@ -30,7 +30,6 @@ object Ryu {
   }
   import Js._
   
-  
   /** riak request builder impl */
   private [ryu] class Ryu(host: String, port: Int) extends Mapred {
     import dispatch._
@@ -129,8 +128,16 @@ trait LinkLike {
   def asLink(tag: String): Link
 }
 
+/** ^ companion */
+object ^ {
+  def apply(bucket: Symbol, key: String) = new ^(bucket, key)
+}
+
 /**  document meta info */
 case class ^ (bucket: Symbol, key: String, vclock: Option[String], links: Option[Seq[Link]]) extends LinkLike {
+  
+  def this(bucket: Symbol, key: String) = this(bucket, key, None, None)
+  
   def headers = Map(
     "Link" -> links.getOrElse(Seq[Link]()).map(l => 
       l.headerVal

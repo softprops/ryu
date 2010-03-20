@@ -14,16 +14,16 @@ object RyuSpec extends Specification {
     val db = Ryu("localhost",8098)
     
     "store a document" in {
-      val key = ^('fighters, "ryu", None, None)
+      val key = ^('fighters, "ryu")
       val value = "test"
       val (doc, headers) = db(key, value)
       db - key
       doc must be_==(value)
     }
     "store multiple documents" in {
-      val key1 = ^('fighters, "ryu", None, None)
+      val key1 = ^('fighters, "ryu")
       val value1 = "ryu"
-      val key2 = ^('fighters, "dan", None, None)
+      val key2 = ^('fighters, "dan")
       val value2 = "dan"
       val res = db ++ ((key1, value1) :: (key2, value2) :: Nil)
       db - key1
@@ -34,7 +34,7 @@ object RyuSpec extends Specification {
       
     }
     "get a document" in {
-      val key = ^('fighters, "ryu", None, None)
+      val key = ^('fighters, "ryu")
       val value = "test"
       db(key, value)
       val (doc, headers) = db(key, value)
@@ -42,7 +42,7 @@ object RyuSpec extends Specification {
       doc must be_==(value)
     }
     "delete a document" in {
-      val key = ^('fighters, "ryu", None, None)
+      val key = ^('fighters, "ryu")
       val value = "test"
       db(key, value)
       db - key
@@ -93,7 +93,7 @@ object RyuSpec extends Specification {
       db - ryu
     }
     "support map reduce for simple types" in {
-      val key = ^('fighters, "ryu", None, None)
+      val key = ^('fighters, "ryu")
       val value = "test"
       db(key, value)
       val q = Query(Seq(("fighters", None, None)), Seq(Mapper named("Riak.mapValues")))

@@ -24,9 +24,9 @@ Scala
     val db = Ryu("localhost", 8098)
     
     // store fighters
-    db(^('fighters, "Ken", None, None), """{"fighting-style":"Shotokan"}""")
-    db(^('fighters, "Ryu", None, None), """{"fighting-style":"Shotokan"}""")
-    db(^('fighters, "Chun-Li", None, None), """{"fighting-style":"Chūgoku Kenpō"}""")
+    db(^('fighters, "Ken"), """{"fighting-style":"Shotokan"}""")
+    db(^('fighters, "Ryu"), """{"fighting-style":"Shotokan"}""")
+    db(^('fighters, "Chun-Li"), """{"fighting-style":"Chūgoku Kenpō"}""")
     
     // now round up the fighters!
     val (props, headers) = db(`fighters)
@@ -61,7 +61,7 @@ a `vclock` is a unique hash of your document version
     val db = Ryu(host, port)
     
     // ref a key for sagat
-    val sagat = ^('fighters, "sagat", None, None)
+    val sagat = ^('fighters, "sagat")
     
     // create a link to sagat 
     val sagatLink = sagat asLink("boss")
@@ -116,6 +116,7 @@ contribute git://github.com/softprops/ryu.git
 
 ## todo
 
+* all methods return Some or None values
 * extract Link objects when fetching documents
 * module for json <-> string conversions
 * use keep-alive for multi stage processing

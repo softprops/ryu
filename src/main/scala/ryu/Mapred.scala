@@ -8,7 +8,7 @@ object Mapred {
   }
 }
 
-private [ryu] abstract class Phase(val q: Map[String,Any])
+private [ryu] abstract class Phase(val q: Map[String, Any])
  
 private [ryu] class Linker(q:Map[String, Any]) extends Phase(q) {
   protected def arg(k:String)(v:Any) = new Linker(q + (k->v))
