@@ -35,15 +35,13 @@ object Ryu {
   /** many docs :P */
   type MultiDoc = List[(String, dispatch.mime.Mime.Headers)]
   
-  /** Provides non-blocking implementations for most Ryu methods */
+  /** Asynchronous Riak request executor */
   private [ryu] class AsyncRyu(host: String, port: Int) extends RyuBase(host, port) {
     import dispatch._
     import dispatch.futures.Futures
     import Http._
-    import dispatch.Callbacks._
     
     protected [ryu] val http = new Http with Threads
-    
     /** Callback fn for one document */
     type Callback = (Doc) => Any
     /** Callback fn for many documents */
@@ -51,18 +49,18 @@ object Ryu {
     
     /** Get bucket info */
     def apply(bucket: Symbol)(cb: Callback): Unit = http.future(
-      get(bucket)
-    ).after(cb)
+      get(bucket) ~> cb
+    )
     
      /** Get a document */
     def apply(meta: ^)(cb: Callback): Unit = http.future(
-      get(meta)
-    ).after(cb)
+      get(meta) ~> cb
+    )
     
     /** Save or update a document @return (doc,headers) */
     def apply(meta: ^, doc: String)(cb: Callback): Unit = http.future(
-      put(meta, doc)
-    ).after(cb)
+      put(meta, doc) ~> cb
+    )
     
     /** Delete a document */  
     def - (meta: ^) = http.future(
@@ -71,12 +69,11 @@ object Ryu {
     
     /** Walk across a Seq of document links */
     def > (meta: ^, links: Seq[(Option[Symbol], Option[String], Option[Boolean])])(cb: MultiCallback) = http.future(
-      walk(meta, links)
-    ).after(cb)
-    
+      walk(meta, links) ~> cb
+    )
   }
   
-  /** Synchronous Riak request builder impl */
+  /** Synchronous Riak request executor */
   private [ryu] class Ryu(host: String, port: Int) extends RyuBase(host, port) with Mapred {
     import dispatch._
     

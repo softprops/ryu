@@ -99,7 +99,7 @@ a `vclock` is a unique hash of your document version
 
 ### A Ryu that doesn't have to block to win
 
-Ryu also comes with a non-blocking interface for most ryu methods that accepts a callback for the response object.
+Ryu also comes with an asynchronous interface for most ryu methods that accepts a callback for the response object.
 
     // ! is for asynchonisity!
     val db = Ryu("localhost", 8098) ! 
@@ -112,7 +112,7 @@ Ryu also comes with a non-blocking interface for most ryu methods that accepts a
     // > punch later
     
 
-The non-blocking interfaces are `curry flavored` so you can bind the request to be handled later
+The asynchronous interfaces are `curry flavored` so you can bind the request to be handled later
 
     val db = Ryu("localhost", 8098) !
     
