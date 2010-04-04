@@ -80,7 +80,7 @@ object RyuSpec extends Specification {
       kheaders must haveKey("Etag")
       kheaders must haveKey("Link")
       
-      val rall = db > (ryu, ('fighters, None, Some(true)))
+      val rall = db > (ryu, (Some('fighters), None, Some(true)))
       rall.size must_== 1
       val (alldoc, allheaders) = rall(0)
       alldoc must be_==(kenValue)

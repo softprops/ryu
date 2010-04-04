@@ -30,67 +30,95 @@ object Ryu {
   }
   import Js._
   
-  /** riak request builder impl */
-  private [ryu] class Ryu(host: String, port: Int) extends Mapred {
+  /** one doc */
+  type Doc = (String, scala.collection.Map.Projection[String, Set[String]])
+  /** many docs :P */
+  type MultiDoc = List[(String, dispatch.mime.Mime.Headers)]
+  
+  /** Provides non-blocking implementations for most Ryu methods */
+  private [ryu] class AsyncRyu(host: String, port: Int) extends RyuBase(host, port) {
     import dispatch._
-    import dispatch.mime.Mime._
-    import scala.io.Source
+    import dispatch.futures.Futures
+    import Http._
+    import dispatch.Callbacks._
     
-    private [ryu] val http = new Http
-    private [ryu] val headers =  Map("Content-Type" -> "application/json", "X-Riak-ClientId" -> "ryu")
-    private [ryu] val withBody = Map("returnbody" -> true) 
-    private [ryu] val docHeaders = Seq("Link", "Date", "ETag", "Expires", "X-Riak-Vclock", "Content-Type")
-    private [ryu] val bucHeaders = Seq("Link", "Date", "Expires", "Content-Type")
+    protected [ryu] val http = new Http with Threads
     
-    val riak = :/(host, port)
-    val raw = riak / "riak"
-    
-    /** Get a server's stats */
-    def stats = http(
-      (riak / "stats") >+ { r =>
-        (r as_str, r >:> { h => h })
-      }
-    )
+    /** Callback fn for one document */
+    type Callback = (Doc) => Any
+    /** Callback fn for many documents */
+    type MultiCallback = (MultiDoc) => Any
     
     /** Get bucket info */
-    def apply(bucket: Symbol) = http(
-      (raw / bucket.name) >+ { *(_, bucHeaders) }
+    def apply(bucket: Symbol)(cb: Callback): Unit = http.future(
+      get(bucket)
+    ).after(cb)
+    
+     /** Get a document */
+    def apply(meta: ^)(cb: Callback): Unit = http.future(
+      get(meta)
+    ).after(cb)
+    
+    /** Save or update a document @return (doc,headers) */
+    def apply(meta: ^, doc: String)(cb: Callback): Unit = http.future(
+      put(meta, doc)
+    ).after(cb)
+    
+    /** Delete a document */  
+    def - (meta: ^) = http.future(
+      delete(meta)
+    )
+    
+    /** Walk across a Seq of document links */
+    def > (meta: ^, links: Seq[(Option[Symbol], Option[String], Option[Boolean])])(cb: MultiCallback) = http.future(
+      walk(meta, links)
+    ).after(cb)
+    
+  }
+  
+  /** Synchronous Riak request builder impl */
+  private [ryu] class Ryu(host: String, port: Int) extends RyuBase(host, port) with Mapred {
+    import dispatch._
+    
+    protected [ryu] val http = new Http
+    
+    /** @return a non-blocking interface */
+    def ! = new AsyncRyu(host, port)
+    
+    /** Get a server's stats */
+    def stats = http(serverStats)
+    
+    /** Get bucket info */
+    def apply[T](bucket: Symbol) = http(
+      get(bucket)
     )
     
     /** Save or update a document @return (doc,headers) */
     def apply(meta: ^, doc: String) = http(
-      (raw / meta.bucket.name / meta.key <:< headers ++ meta.headers <<? withBody <<< doc.asJson) >+ { *(_, docHeaders) }
+      put(meta, doc)
     )
     
     /** Save or update multiple documents @return List[(doc,headers)] */
-    def ++ (kvs: Iterable[(^, String)]) = ((List[(String, scala.collection.Map.Projection[String, Set[String]])]() /: kvs) (
+    def ++ [T](kvs: Iterable[(^, String)]) = ((List[(String, scala.collection.Map.Projection[String, Set[String]])]() /: kvs) (
       (l, e) => apply(e._1, e._2) :: l
     )).reverse
     
     /** Get a document */
     def apply(meta: ^) = http(
-      (raw / meta.bucket.name / meta.key <:< headers) >+ { *(_, docHeaders) }
+      get(meta)
     )
-    
+      
     /** Delete a document */
-    def - (meta: ^)  = http(
-      (raw / meta.bucket.name / meta.key DELETE) >|
+    def - (meta: ^) = http(
+      delete(meta)
     )
     
     /** Walk document links 
      * @return list of (doc, headers)
      */
-    def > (meta: ^, links: (Symbol, Option[String], Option[Boolean])*) = {
-      def segments = ((List[String]() /: links) { (a,l) => 
-         ("%s,%s,%s" format(l._1.name, l._2.getOrElse("_"), l._3.getOrElse("_"))) :: a
-      }).reverse.mkString("/")
-      
-      http(
-        raw / meta.bucket.name / meta.key / segments >--> { (headers, stm) =>
-          (Source.fromInputStream(stm).mkString, headers)
-        }
-      )
-    }
+    def > (meta: ^, links: (Option[Symbol], Option[String], Option[Boolean])*) = http(
+      walk(meta, links)
+    )   
     
     /** Submit a map/reduce query */
     def mapred(q: Query) = http(
@@ -98,9 +126,48 @@ object Ryu {
         (r as_str, r >:> { h => h })
       }
     )
-    
+  }
+
+  private [ryu] class RyuBase(host: String, port: Int) {
+    import dispatch._
+    import dispatch.mime.Mime._
+    import scala.io.Source
+
+    protected [ryu] val headers =  Map("Content-Type" -> "application/json", "X-Riak-ClientId" -> "ryu")
+    protected [ryu] val withBody = Map("returnbody" -> true) 
+    protected [ryu] val docHeaders = Seq("Link", "Date", "ETag", "Expires", "X-Riak-Vclock", "Content-Type")
+    protected [ryu] val bucHeaders = Seq("Link", "Date", "Expires", "Content-Type")
+
+    val riak = :/(host, port)
+    val raw = riak / "riak"
+
+    protected [ryu] def serverStats  = (riak / "stats") >+ { r =>
+      (r as_str, r >:> { h => h })
+    }
+
+    protected [ryu] def get(bucket: Symbol) = (raw / bucket.name) >+ { *(_, bucHeaders) }
+
+    protected [ryu] def get(meta: ^) = (raw / meta.bucket.name / meta.key <:< headers) >+ { *(_, docHeaders) }
+
+    protected [ryu] def put(meta: ^, doc: String) = 
+      (raw / meta.bucket.name / meta.key <:< headers ++ meta.headers <<? withBody <<< doc.asJson) >+ { *(_, docHeaders) }
+
+    protected [ryu] def delete(meta: ^) = (raw / meta.bucket.name / meta.key DELETE) >|
+
+    protected [ryu] def walk(meta: ^, links: Seq[(Option[Symbol], Option[String], Option[Boolean])]) = {
+       def segments = ((List[String]() /: links) { (a,l) => 
+           ("%s,%s,%s" format(l._1.getOrElse("_") match {
+             case sym:Symbol => sym.name
+             case str:String => str 
+           }, l._2.getOrElse("_"), l._3.getOrElse("_"))) :: a
+        }).reverse.mkString("/")
+        raw / meta.bucket.name / meta.key / segments >--> { (headers, stm) =>
+          (Source.fromInputStream(stm).mkString, headers)
+        }
+    }
+
     /** `Splat` req handler to split response into (doc, headers) */
-    private [ryu] def *(r: Handlers, keys: Seq[String]) =
+    protected [ryu] def *(r: Handlers, keys: Seq[String]) =
       (r as_str, r >:> { h => h.filterKeys { keys.contains } })
   }
 }
@@ -120,7 +187,7 @@ case class Link(bucket: Symbol, key:Option[String], tag: String) {
   }
   
   /** @return walk query representation of self */
-  def queryVal(keep:Boolean) = (bucket, Some(tag), if(keep) Some(keep) else None)
+  def queryVal(keep:Boolean) = (Some(bucket), Some(tag), if(keep) Some(keep) else None)
 }
 
 /** Able to project self as a Link */

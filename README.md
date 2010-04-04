@@ -35,7 +35,7 @@ Scala
 
 documents have meta info which ryu uses as keys to access documents
 
-    val meta = ^(`bucket, "key", Some("vclock"), Some(
+    val meta = ^('bucket, "key", Some("vclock"), Some(
       Seq(Link('bucket, Some("otherkey"), "linkTag"))
     ))
 
@@ -58,7 +58,7 @@ a `vclock` is a unique hash of your document version
     import ryu._
     
     // ref riak
-    val db = Ryu(host, port)
+    val db = Ryu("localhost", 8098)
     
     // ref a key for sagat
     val sagat = ^('fighters, "sagat")
@@ -93,19 +93,48 @@ a `vclock` is a unique hash of your document version
     db - sagat
     
     // validate m/r query
-    Query(Seq(("fighters",None, None)), Seq(
+    Query(Seq(("fighters", None, None)), Seq(
         Linker tag("dan")
     )).validate // IllegalArgumentException (must contain a Mapper or Reducer)
 
+### A Ryu that doesn't have to block to win
+
+Ryu also comes with a non-blocking interface for most ryu methods that accepts a callback for the response object.
+
+    // ! is for asynchonisity!
+    val db = Ryu("localhost", 8098) ! 
+
+    db(^('fighters, "ken"), "punch later") { ken => 
+      println(ken._1) 
+    }
+    println("kick") 
+    // > kick
+    // > punch later
+    
+
+The non-blocking interfaces are `curry flavored` so you can bind the request to be handled later
+
+    val db = Ryu("localhost", 8098) !
+    
+    val curriedPunch = db(^('fighters, "ken"), "punch later")_
+    
+    println("kick, kick, punch, kick")
+    
+    // time to fight back!
+    curriedPunch { ken =>
+      println(ken._1)
+    }
+
 ## install
 
-install [erlang](http://gist.github.com/302327)
+* riak dependencies
+  * install [erlang](http://gist.github.com/302327)
+  * download and install [riak](http://downloads.basho.com/riak/) 0.9.1 or later
 
-download and install [riak](http://downloads.basho.com/riak/) 0.9.1 or later
+* ryu
+  * TODO mvn repo
 
-TODO mvn repo
-
-## fork/knife it
+## fork or knife ryu to fight back
 
 contribute git://github.com/softprops/ryu.git
 
@@ -116,11 +145,11 @@ contribute git://github.com/softprops/ryu.git
 
 ## todo
 
-* all methods return Some or None values
+* all methods return Option values `db(^('fighters, "dan")).getOrElse(default)`
 * extract Link objects when fetching documents
 * module for json <-> string conversions
 * use keep-alive for multi stage processing
-* solifidy api
+* finalize api
 
 ## issues
 
