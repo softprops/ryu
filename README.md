@@ -37,7 +37,7 @@ documents have meta info which ryu uses as keys to access documents
 
     val meta = ^('bucket, "key", Some("vclock"), Some(
       Seq(Link('bucket, Some("otherkey"), "linkTag"))
-    ))
+    ), "application/json")
 
 Did I just misspell 'clock'?
 
@@ -50,6 +50,8 @@ a `key` is the key by which you refer to your value silly
 a `vclock` is a unique hash of your document version
 
 `links` are a navigation utility used for traversing to other documents (think html anchors)
+
+`content type` is the type hint given to riak to store and retrive data
 
 `documents` have data (expected flavor is jsón)
 
@@ -67,7 +69,7 @@ a `vclock` is a unique hash of your document version
     val sagatLink = sagat asLink("boss")
     
     // ref a key for dan
-    val dan = ^('fighters, "dan", None, Some(Seq(sagatLink)))
+    val dan = ^('fighters, "dan") + sagatLink
     
     // save or update sagat
     db(sagat, """{"hp":10}""")
@@ -147,6 +149,8 @@ contribute git://github.com/softprops/ryu.git
 
 * all methods return Option values `db(^('fighters, "dan")).getOrElse(default)`
 * extract Link objects when fetching documents
+* support multiple/arbitrary content types
+* document storage without a provided key
 * module for json <-> string conversions
 * use keep-alive for multi stage processing
 * finalize api
