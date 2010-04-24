@@ -148,7 +148,7 @@ object Ryu {
     protected [ryu] val withBody = Map("returnbody" -> true) 
     protected [ryu] def writes(n: Int) = Map("w" -> n)
     protected [ryu] def replicas(dw: Int) = Map("dw" -> dw)
-    protected [ryu] val docHeaders = Seq("Link", "Date", "ETag", "Expires", "X-Riak-Vclock", "Content-Type")
+    protected [ryu] val docHeaders = Seq("Link", "Date", "ETag", "Expires", "X-Riak-Vclock", "Content-Type", "Location")
     protected [ryu] val bucHeaders = Seq("Link", "Date", "Expires", "Content-Type")
 
     val riak = :/(host, port)
