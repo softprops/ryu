@@ -13,7 +13,7 @@ object RyuSpec extends Specification {
     
     val db = Ryu("localhost",8098)
     
-    "store a document" in {
+    "store a document given a key" in {
       val key = ^('fighters, "ryu")
       val value = "test"
       val (doc, headers) = db(key, value)
@@ -31,7 +31,6 @@ object RyuSpec extends Specification {
       res.size must be_==(2)
       res(0)._1 must be_==(value1)
       res(1)._1 must be_==(value2)
-      
     }
     "get a document" in {
       val key = ^('fighters, "ryu")
@@ -50,11 +49,11 @@ object RyuSpec extends Specification {
     }
     "walk between documents " in {
       val l2r = Link('fighters, Some("ryu"), "white")
-      val ken = ^('fighters, "ken", None, Some(Seq(l2r)))
+      val ken = ^('fighters, "ken") + l2r
       val l2k = ken asLink("red")
       val kenValue = "this is ken"
       
-      val ryu = ^('fighters, "ryu", None, Some(Seq(l2k)))
+      val ryu = ^('fighters, "ryu") + l2k
       val ryuValue = "this is ryu"
       
       db(ken, kenValue)
@@ -101,7 +100,7 @@ object RyuSpec extends Specification {
       r must be_==("[\"test\"]")
     }
     "support map reduce for compile types" in {
-      val key = ^('fighters, "ryu", None, None)
+      val key = ^('fighters, "ryu")
       val value = "{\"foo\":\"bar\"}"
       db(key, value)
       val q = Query(Seq(("fighters", None, None)), Seq(Mapper named("Riak.mapValuesJson")))

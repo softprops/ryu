@@ -31,9 +31,11 @@ object Ryu {
   import Js._
   
   /** one doc */
-  type Doc = (String, scala.collection.Map.Projection[String, Set[String]])
+  type Doc = (String, scala.collection.Map[String, Set[String]])
   /** many docs :P */
   type MultiDoc = List[(String, dispatch.mime.Mime.Headers)]
+  /** url base trio used for link walking map reduce queries [bucket],[key],[keep]*/
+  type LinkSpec = (Option[Symbol], Option[String], Option[Boolean])
   
   /** Asynchronous Riak request executor */
   private [ryu] class AsyncRyu(host: String, port: Int) extends RyuBase(host, port) {
@@ -61,6 +63,11 @@ object Ryu {
     def apply(meta: ^, doc: String)(cb: Callback): Unit = http.future(
       put(meta, doc) ~> cb
     )
+    
+    /** Save or update a file document @return (doc,headers) */
+    //def apply(meta: ^, file: java.io.File, contentType: String)(cb: Callback): Unit = http.future(
+    //  put(meta, file, contentType) ~> cb
+    //)
     
     /** Delete a document */  
     def - (meta: ^) = http.future(
@@ -91,12 +98,18 @@ object Ryu {
     )
     
     /** Save or update a document @return (doc,headers) */
-    def apply(meta: ^, doc: String) = http(
-      put(meta, doc)
+    def apply(meta: ^, doc: String) = http(meta.key match {
+      case null => post(meta, doc)
+      case _ => put(meta, doc)
+    })
+    
+    /** Save or update a file document @return (doc,headers) */
+    def apply(meta: ^, file: java.io.File, contentType: String) = http(
+      put(meta, file, contentType)
     )
     
     /** Save or update multiple documents @return List[(doc,headers)] */
-    def ++ [T](kvs: Iterable[(^, String)]) = ((List[(String, scala.collection.Map.Projection[String, Set[String]])]() /: kvs) (
+    def ++ [T](kvs: Iterable[(^, String)]) = ((List[(String, scala.collection.Map[String, Set[String]])]() /: kvs) (
       (l, e) => apply(e._1, e._2) :: l
     )).reverse
     
@@ -130,8 +143,11 @@ object Ryu {
     import dispatch.mime.Mime._
     import scala.io.Source
 
+    
     protected [ryu] val headers =  Map("Content-Type" -> "application/json", "X-Riak-ClientId" -> "ryu")
     protected [ryu] val withBody = Map("returnbody" -> true) 
+    protected [ryu] def writes(n: Int) = Map("w" -> n)
+    protected [ryu] def replicas(dw: Int) = Map("dw" -> dw)
     protected [ryu] val docHeaders = Seq("Link", "Date", "ETag", "Expires", "X-Riak-Vclock", "Content-Type")
     protected [ryu] val bucHeaders = Seq("Link", "Date", "Expires", "Content-Type")
 
@@ -144,19 +160,31 @@ object Ryu {
 
     protected [ryu] def get(bucket: Symbol) = (raw / bucket.name) >+ { *(_, bucHeaders) }
 
-    protected [ryu] def get(meta: ^) = (raw / meta.bucket.name / meta.key <:< headers) >+ { *(_, docHeaders) }
+    /** TODO conditonal content-type handling binary vs string data */
+    protected [ryu] def get(meta: ^) =
+      (raw / meta.bucket.name / meta.key <:< headers) >+ { *(_, docHeaders) }
 
-    protected [ryu] def put(meta: ^, doc: String) = 
+    protected [ryu] def post(meta: ^, doc: String) =
+      (raw / meta.bucket.name <:< headers ++ meta.headers <<? withBody << doc.asJson) >+ { *(_, docHeaders) }
+
+    protected [ryu] def put(meta: ^, file: java.io.File, contentType: String) =
+      (raw / meta.bucket.name / meta.key <:< headers ++ meta.as(contentType).headers <<< (file, contentType)) >|
+
+    protected [ryu] def put(meta: ^, doc: String) =
       (raw / meta.bucket.name / meta.key <:< headers ++ meta.headers <<? withBody <<< doc.asJson) >+ { *(_, docHeaders) }
-
+    
     protected [ryu] def delete(meta: ^) = (raw / meta.bucket.name / meta.key DELETE) >|
 
-    protected [ryu] def walk(meta: ^, links: Seq[(Option[Symbol], Option[String], Option[Boolean])]) = {
+    protected [ryu] def walk(meta: ^, links: Seq[LinkSpec]) = {
        def segments = ((List[String]() /: links) { (a,l) => 
            ("%s,%s,%s" format(l._1.getOrElse("_") match {
              case sym:Symbol => sym.name
              case str:String => str 
-           }, l._2.getOrElse("_"), l._3.getOrElse("_"))) :: a
+           }, l._2.getOrElse("_"), l._3 match {
+             case Some(true) => 1
+             case Some(false) => 0
+             case _ => "_"
+           })) :: a
         }).reverse.mkString("/")
         raw / meta.bucket.name / meta.key / segments >--> { (headers, stm) =>
           (Source.fromInputStream(stm).mkString, headers)
@@ -188,31 +216,36 @@ case class Link(bucket: Symbol, key:Option[String], tag: String) {
 }
 
 /** Able to project self as a Link */
-trait LinkLike { 
-  def asLink(tag: String): Link
-}
+trait LinkLike { def asLink(tag: String): Link }
 
 /** ^ companion */
 object ^ {
   def apply(bucket: Symbol, key: String) = new ^(bucket, key)
+  def apply(bucket: Symbol) = new ^(bucket)
 }
 
-/**  document meta info */
-case class ^ (bucket: Symbol, key: String, vclock: Option[String], links: Option[Seq[Link]]) extends LinkLike {
-  
-  def this(bucket: Symbol, key: String) = this(bucket, key, None, None)
-  
+/** document meta info */
+case class ^ (bucket: Symbol, key: String, vclock: Option[String], links: Option[Seq[Link]], contentType: String) extends LinkLike {
+  /** Use when creating a new meta object that does not yet have vclock, and link info */
+  def this(bucket: Symbol, key: String) = this(bucket, key, None, None, "application/json")
+  /** Specifically used when storing a new object without a key */
+  def this(bucket: Symbol) = this(bucket, null)
+  /** project self with new content type */
+  def as(cType: String) = ^(
+    bucket, key, vclock, links, cType
+  )
+  /** Header representation of attributes */
   def headers = Map(
     "Link" -> links.getOrElse(Seq[Link]()).map(l => 
       l.headerVal
-    ).mkString(", ")
+    ).mkString(", "),
+    "Content-Type" -> contentType
   )
-  
+  /** Project self as a Link object */
   def asLink(tag: String) = Link(bucket, Some(key), tag)
-  
   /** @return new ^ with given Link l */
   def + (l: Link) = ^(
-    bucket, key, vclock, Some(links getOrElse(Seq[Link]()) ++ Seq(l))
+    bucket, key, vclock, Some(links getOrElse(Seq[Link]()) ++ Seq(l)), contentType
   )
 }
 
