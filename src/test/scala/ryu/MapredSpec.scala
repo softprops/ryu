@@ -4,7 +4,6 @@ import org.specs._
 
 object MapredSpec extends Specification {
   "A Query" should {
-    import Mapred.QueryDefaults._
     
     "validate presence of mapper or reducer" in {
       val q = Query(Seq(("foo",None, None)), Seq())

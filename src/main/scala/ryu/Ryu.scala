@@ -5,19 +5,35 @@ object Ryu {
   def apply(host: String, port: Int) = new Ryu(host, port)
   
   /** Link extractor */
-  object Link_? {
-    val Header = """<\/raw\/(\w.+)>;\s*(rel|riaktag)=\"(\w.+)\" """.trim.r
-    def unapply(h: String): Option[Link] = h match {
-      case Header(path, t, tag) => t match {
-        case "riaktag" | "rel" => {
-          val parts = path.split("/")
-          if(parts.size > 1) Some(Link(Symbol(parts(0)),Some(parts(1)), tag))
-          else Some(Link(Symbol(path), None, tag))
+  object Links {
+    val Header = """<\/riak\/(\w.+)>;\s*(rel|riaktag)=\"(\w.+)\" """.trim.r
+    def unapply(header: String): Seq[Link] =
+      (Seq[Link]() /: header.split(", ")) ( (links, h) =>
+         (h match {
+          case Header(path, t, tag) => t match {
+            case "riaktag" | "rel" => {
+              val parts = path.split("/")
+              if(parts.size > 1) Some(Link(Symbol(parts(0)), Some(parts(1)), tag))
+              else Some(Link(Symbol(path), None, tag))
+            }
+            case _ => None
+          }
+        }) match {
+          case Some(l) => links ++ Some(l)
+          case _ => links
         }
-        case _ => None
-      }
+      )
+  }
+  
+  /** Extractor for getting a key from a location header */
+  object Location {
+    val Header = """\/\w+\/\w+\/(\w+)""".r
+    def unapply(header: String) = header match {
+      case Header(key) => Some(key)
+      case _ => None
     }
   }
+  
   
   object Js {
     implicit def any2Json(obj: Any) = new Jsonifier(obj)
@@ -142,7 +158,6 @@ object Ryu {
     import dispatch._
     import dispatch.mime.Mime._
     import scala.io.Source
-
     
     protected [ryu] val headers =  Map("Content-Type" -> "application/json", "X-Riak-ClientId" -> "ryu")
     protected [ryu] val withBody = Map("returnbody" -> true) 
@@ -220,8 +235,27 @@ trait LinkLike { def asLink(tag: String): Link }
 
 /** ^ companion */
 object ^ {
+
   def apply(bucket: Symbol, key: String) = new ^(bucket, key)
+
   def apply(bucket: Symbol) = new ^(bucket)
+
+  // def unapply(headers: Map[String, Set[String]]) = {
+  //   val links = headers get("Location") match {
+  //     case Some(set) => { set.toList.first match {
+  //         case Ryu.Links(l) => l
+  //         case _ => Seq[Link]()
+  //       }
+  //     }
+  //     case _ => Seq[Link]()
+  //   }
+  //   links
+  //   // Link(s)
+  //   // Date
+  //   // Content-Type
+  //   // X-Riak-Vclock
+  //   // Location
+  // }
 }
 
 /** document meta info */
@@ -230,7 +264,7 @@ case class ^ (bucket: Symbol, key: String, vclock: Option[String], links: Option
   def this(bucket: Symbol, key: String) = this(bucket, key, None, None, "application/json")
   /** Specifically used when storing a new object without a key */
   def this(bucket: Symbol) = this(bucket, null)
-  /** project self with new content type */
+  /** Project self as a given content type */
   def as(cType: String) = ^(
     bucket, key, vclock, links, cType
   )
@@ -243,10 +277,10 @@ case class ^ (bucket: Symbol, key: String, vclock: Option[String], links: Option
   )
   /** Project self as a Link object */
   def asLink(tag: String) = Link(bucket, Some(key), tag)
-  /** @return new ^ with given Link l */
+  /** @return new instance of this with an appended link */
   def + (l: Link) = ^(
     bucket, key, vclock, Some(links getOrElse(Seq[Link]()) ++ Seq(l)), contentType
-  )
+  )  
 }
 
 /** bucket meta into */

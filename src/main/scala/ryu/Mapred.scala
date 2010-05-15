@@ -2,10 +2,7 @@ package ryu
 
 object Mapred {
   val path = "mapred"
-  val defaults = Map("language"->"javascript", "keep"->true)
-  object QueryDefaults {
-    implicit val timeout = 60000
-  }
+  val defaults = Map("language" -> "javascript", "keep" -> true)
 }
 
 private [ryu] abstract class Phase(val q: Map[String, Any])
@@ -38,6 +35,12 @@ private [ryu] class Reducer(q:Map[String, Any]) extends Phase(q) {
 }
 /** Reduce phase builder */
 object Reducer extends Reducer(Mapred.defaults)
+
+/** Query companion */
+object Query {
+  def apply(inputs: Seq[(String, Option[String], Option[String])], phases: Seq[Phase]) =
+    new Query(inputs, phases, 60000)
+}
 
  /** A wrapper for a m/r query
   *  @param inputs a Seq of tuples in the format (bucket,Some(key),Some(keyData))
@@ -86,7 +89,7 @@ object Reducer extends Reducer(Mapred.defaults)
   *    ))
   *  </pre>
   */
-case class Query(inputs: Seq[(String, Option[String], Option[String])], phases: Seq[Phase])(implicit timeout:Int) {
+case class Query(inputs: Seq[(String, Option[String], Option[String])], phases: Seq[Phase], timeout:Int) {
   val hasMapperOrReducer = !(phases filter { p => 
     p.isInstanceOf[Mapper] || p.isInstanceOf[Reducer]
   } isEmpty)
@@ -94,7 +97,9 @@ case class Query(inputs: Seq[(String, Option[String], Option[String])], phases: 
   def validate = require(
     hasMapperOrReducer, "must contain a Mapper or Reducer"
   )
-   
+  
+  def timeout(to: Int) = Query(inputs, phases, to)
+  
   /** FIXME -> `fugly`
    * generates json as
    * {"inputs":[["x","y"]],query:[{["link"|"map"|"reduce"]:{"language":"javascript","source":"function(){...}", "keep":[true|false]}}]}

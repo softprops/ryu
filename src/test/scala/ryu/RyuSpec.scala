@@ -8,9 +8,6 @@ import org.specs._
 object RyuSpec extends Specification {
   "Ryu" should {
     
-    // timeout
-    import Mapred.QueryDefaults._
-    
     val db = Ryu("localhost",8098)
     
     "store a document given a key" in {
